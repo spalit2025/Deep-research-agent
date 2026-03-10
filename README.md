@@ -51,9 +51,11 @@
   deep-research --topic "AI in healthcare" --template business
   deep-research --topic "quantum computing" --template academic
   deep-research --topic "renewable energy" --template quick
+  ```
 
-  Architecture
+ ## Architecture                                           
 
+  ```
   User Input (CLI)
       |
   ReportConfig (template selection)
@@ -64,57 +66,50 @@
       ├── Write sections (Claude API, rate-limited)
       |   └── TokenManager fits source content to context window
       └── Compile final report
+  ```
 
-  Core modules:
+  ## Core modules:
 
-  ┌────────────────────────────┬────────────────────────────────────────────────────────────────────┐
-  │           Module           │                              Purpose                               │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ report_generator.py        │ Main orchestrator -- plans, researches, writes, compiles           │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ config.py                  │ Template presets with token limits, caching, and rate limiting     │
-  │                            │ config                                                             │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ utils/search_cache.py      │ Query caching with similarity detection                            │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ utils/prompt_versioning.py │ Version management, A/B testing, performance analytics             │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ utils/token_manager.py     │ Fits content to 200k token context window                          │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ utils/json_parser.py       │ Multi-strategy JSON extraction from LLM responses                  │
-  ├────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ utils/prompt_loader.py     │ Template-aware prompt loading with versioning support              │
-  └────────────────────────────┴────────────────────────────────────────────────────────────────────┘
+  - `report_generator.py` -- Main orchestrator: plans, researches, writes, compiles
+  - `config.py` -- Template presets with token limits, caching, and rate limiting config
+  - `utils/search_cache.py` -- Query caching with similarity detection
+  - `utils/prompt_versioning.py` -- Version management, A/B testing, performance analytics
+  - `utils/token_manager.py` -- Fits content to 200k token context window
+  - `utils/json_parser.py` -- Multi-strategy JSON extraction from LLM responses
+  - `utils/prompt_loader.py` -- Template-aware prompt loading with versioning support
 
-  Prompt versioning
 
-  The system tracks prompt performance so you can make data-driven decisions
-  about prompt quality:
+  ## Prompt versioning                                                                                 
+   
+  The system tracks prompt performance so you can make data-driven decisions                           
+  about prompt quality:                                     
 
+  ```bash
   python prompt_cli.py list                                    # List all versions
   python prompt_cli.py analytics -p SECTION_WRITER_PROMPT     # View performance data
   python prompt_cli.py add SECTION_WRITER_PROMPT v2.0 "..." -d "Better formatting"
   python prompt_cli.py set-active SECTION_WRITER_PROMPT v2.0  # Switch active version
   python prompt_cli.py test SECTION_WRITER_PROMPT v2.0 "AI in healthcare"
+  ```
 
-  Key design decisions
+  ## Key design decisions
 
-  - Similarity-based caching over exact-match: Research queries on the same
-  topic use slightly different phrasing. Similarity detection (threshold: 0.75)
+  - **Similarity-based caching** over exact-match: Research queries on the same topic use slightly different phrasing. Similarity detection (threshold: 0.75)
   catches these, dramatically improving cache hit rates vs. exact matching.
-  - Template-specific token budgets: A quick report and an academic report
-  have different depth requirements. Each template defines its own token
+
+  - **Template-specific token budgets**: A quick report and an academic report have different depth requirements. Each template defines its own token
   allocation rather than using a global limit.
-  - Prompt versioning as a first-class feature: Instead of editing prompts
-  in-place and hoping they improve, every change is versioned with analytics.
+
+  - **Prompt versioning as a first-class feature**: Instead of editing prompts in-place and hoping they improve, every change is versioned with analytics.
   This mirrors how production ML teams manage model versions.
-  - Graceful degradation: Rate limiting, retry logic, and multi-strategy
-  JSON parsing mean the system handles API hiccups without crashing.
 
-  Configuration
+  - **Graceful degradation**: Rate limiting, retry logic, and multi-strategy JSON parsing mean the system handles API hiccups without crashing.  
 
-  Key settings in config.py:
-
+ ## Configuration                                                                                     
+   
+  Key settings in `config.py`:                                                                         
+                                                            
+  ```python
   ReportConfig(
       template="business",           # business | academic | technical | quick
       max_content_length=200000,     # Token budget
@@ -123,13 +118,15 @@
       similarity_threshold=0.75,     # Cache similarity matching
       enable_prompt_versioning=True, # A/B testing system
   )
+  ```
 
-  Requirements
+
+  ## Requirements
 
   - Python 3.8+
   - https://console.anthropic.com/ (Claude)
   - https://tavily.com/ (web search)
 
-  License
+  ## License
 
   MIT

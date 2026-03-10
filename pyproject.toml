@@ -27,8 +27,9 @@ dependencies = [
     "anthropic>=0.20.0",
     "tavily-python>=0.3.0",
     "python-dotenv>=1.0.0",
-    "tiktoken>=0.5.0",
-    "scikit-learn>=1.0.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+    "structlog>=23.0.0",
 ]
 
 [project.optional-dependencies]
@@ -42,9 +43,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/spalit2025/Deep_research_structured_report"
-Repository = "https://github.com/spalit2025/Deep_research_structured_report"
-Issues = "https://github.com/spalit2025/Deep_research_structured_report/issues"
+Homepage = "https://github.com/spalit2025/Deep-research-agent"
+Repository = "https://github.com/spalit2025/Deep-research-agent"
+Issues = "https://github.com/spalit2025/Deep-research-agent/issues"
 
 [project.scripts]
 deep-research = "main:main"
@@ -162,8 +163,6 @@ show_error_codes = true
 module = [
     "anthropic.*",
     "tavily.*",
-    "tiktoken.*",
-    "sklearn.*",
 ]
 ignore_missing_imports = true
 

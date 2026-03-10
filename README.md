@@ -51,8 +51,8 @@ Follow these steps to set up and run the project locally.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/spalit2025/Deep_research_agent.git
-cd Deep_research_agent
+git clone https://github.com/spalit2025/Deep-research-agent.git
+cd Deep-research-agent
 ```
 
 ### 2. Set Up Environment Variables
@@ -63,7 +63,7 @@ This project requires API keys for Anthropic and Tavily.
     ```bash
     cp env_template.sh .env
     ```
-2.  Edit the `.env` file and add your API keys. Refer to [env_template.sh](mdc:env_template.sh) for all required variables.
+2.  Edit the `.env` file and add your API keys. Refer to [env_template.sh](./env_template.sh) for all required variables.
     ```
     ANTHROPIC_API_KEY="your_anthropic_api_key_here"
     TAVILY_API_KEY="your_tavily_api_key_here"
@@ -76,7 +76,7 @@ The project uses `pyproject.toml` to manage dependencies. To install the applica
 ```bash
 pip install -e .[dev]
 ```
-This command installs all main dependencies plus the development dependencies specified in [pyproject.toml](mdc:pyproject.toml).
+This command installs all main dependencies plus the development dependencies specified in [pyproject.toml](./pyproject.toml).
 
 ### 4. Initialize Prompt Versioning (Optional)
 
@@ -89,7 +89,7 @@ python initialize_prompt_versioning.py
 
 ### Running the Report Generator
 
-The primary way to run the application is via the `deep-research` command, which is an entry point defined in [pyproject.toml](mdc:pyproject.toml).
+The primary way to run the application is via the `deep-research` command, which is an entry point defined in [pyproject.toml](./pyproject.toml).
 
 ```bash
 # Generate a business report on "AI in healthcare"
@@ -238,7 +238,7 @@ deep-research --topic "AI ethics" --template academic --prompt-version v2.0_enha
 
 ## 🔧 Development and Code Quality
 
-This project uses a modern Python development stack with automated tools to ensure code quality, consistency, and correctness. All tool configurations are defined in [pyproject.toml](mdc:pyproject.toml).
+This project uses a modern Python development stack with automated tools to ensure code quality, consistency, and correctness. All tool configurations are defined in [pyproject.toml](./pyproject.toml).
 
 ### Development Setup
 

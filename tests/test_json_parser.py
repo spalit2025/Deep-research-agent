@@ -382,7 +382,7 @@ class TestErrorHandling:
         text = binary_like.decode("utf-8", errors="ignore")
 
         # Should handle gracefully
-        result = RobustJSONParser.extract_json_from_text(text, "object")
+        RobustJSONParser.extract_json_from_text(text, "object")
         # Don't care about result, just that it doesn't crash
 
     def test_recursive_json_structures(self):

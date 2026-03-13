@@ -331,7 +331,6 @@ class ObservabilityManager:
 
         start_time = time.time()
         success = False
-        error = None
 
         try:
             logger.info(
@@ -341,7 +340,6 @@ class ObservabilityManager:
             success = True
 
         except Exception as e:
-            error = e
             logger.error(
                 f"Operation failed: {operation_name}", error=e, operation=operation_name
             )
@@ -374,18 +372,16 @@ class ObservabilityManager:
 
         # Duration thresholds
         for threshold_key, threshold_value in self.thresholds.items():
-            if threshold_key.endswith("_duration") and operation in threshold_key:
-                if duration > threshold_value:
-                    alerts.append(
-                        f"Slow operation: {operation} took {duration:.2f}s (threshold: {threshold_value}s)"
-                    )
+            if threshold_key.endswith("_duration") and operation in threshold_key and duration > threshold_value:
+                alerts.append(
+                    f"Slow operation: {operation} took {duration:.2f}s (threshold: {threshold_value}s)"
+                )
 
         # Error rate threshold
-        if not success:
-            if operation in self.metrics.metrics:
-                error_rate = 1 - self.metrics.metrics[operation].success_rate
-                if error_rate > self.thresholds.get("error_rate", 0.1):
-                    alerts.append(f"High error rate: {operation} at {error_rate:.1%}")
+        if not success and operation in self.metrics.metrics:
+            error_rate = 1 - self.metrics.metrics[operation].success_rate
+            if error_rate > self.thresholds.get("error_rate", 0.1):
+                alerts.append(f"High error rate: {operation} at {error_rate:.1%}")
 
         # Log alerts
         for alert in alerts:

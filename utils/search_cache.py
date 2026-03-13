@@ -303,7 +303,7 @@ class SearchCache:
             if filename.endswith(".json"):
                 try:
                     file_path = os.path.join(self.cache_dir, filename)
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         data = json.load(f)
 
                     entry = CacheEntry(**data)

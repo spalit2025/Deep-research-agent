@@ -196,7 +196,6 @@ class TestExponentialBackoff:
             return "success"
 
         config = RetryConfig(max_retries=3, base_delay=0.1, max_delay=10.0)
-        start_time = time.time()
 
         await retry_with_exponential_backoff(timing_func, config)
 
@@ -221,7 +220,7 @@ class TestExponentialBackoff:
 
         config = RetryConfig(max_retries=5, base_delay=1.0, max_delay=0.2)
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             await retry_with_exponential_backoff(timing_func, config)
 
         # All delays should be capped at max_delay (0.2s)
@@ -458,8 +457,6 @@ class TestErrorScenarios:
         manager = APICallManager(
             {"anthropic_rate_limit_delay": 0.05, "enable_rate_limiting": True}
         )
-
-        results = []
 
         async def api_call(call_id):
             await asyncio.sleep(0.01)  # Simulate API latency

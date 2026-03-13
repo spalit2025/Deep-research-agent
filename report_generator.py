@@ -4,7 +4,6 @@ Improved Report Generator with Separate Prompts
 Clean separation of logic and content for better maintainability
 """
 
-import asyncio
 import os
 from typing import Any, Dict, List
 

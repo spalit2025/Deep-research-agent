@@ -33,7 +33,7 @@ class TestSearchCacheJSONSerialization:
             assert len(json_files) == 1
             assert len(pkl_files) == 0
 
-            with open(os.path.join(tmpdir, json_files[0]), "r") as f:
+            with open(os.path.join(tmpdir, json_files[0])) as f:
                 data = json.load(f)
             assert data["query"] == "test query"
             assert data["topic"] == "testing"

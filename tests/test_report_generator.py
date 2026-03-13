@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from config import ReportConfig
 from report_generator import ImprovedReportGenerator, ReportPlan, Section
 from utils.token_manager import TokenManager
 
@@ -30,7 +29,7 @@ def mock_env():
 
 
 @pytest.fixture
-def generator(mock_env):
+def generator(mock_env):  # noqa: ARG001
     """Create a generator instance with mocked API clients"""
     with patch("report_generator.Anthropic"), \
          patch("report_generator.TavilyClient"), \
@@ -101,21 +100,21 @@ class TestAPIKeyValidation:
 
     def test_missing_anthropic_key_raises(self):
         """Should raise ValueError when ANTHROPIC_API_KEY is missing"""
-        with patch.dict(os.environ, {"TAVILY_API_KEY": "test"}, clear=True):
-            with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
-                ImprovedReportGenerator()
+        with patch.dict(os.environ, {"TAVILY_API_KEY": "test"}, clear=True), \
+             pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            ImprovedReportGenerator()
 
     def test_missing_tavily_key_raises(self):
         """Should raise ValueError when TAVILY_API_KEY is missing"""
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test"}, clear=True):
-            with pytest.raises(ValueError, match="TAVILY_API_KEY"):
-                ImprovedReportGenerator()
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test"}, clear=True), \
+             pytest.raises(ValueError, match="TAVILY_API_KEY"):
+            ImprovedReportGenerator()
 
     def test_missing_both_keys_raises_anthropic_first(self):
         """Should raise for ANTHROPIC_API_KEY first when both are missing"""
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
-                ImprovedReportGenerator()
+        with patch.dict(os.environ, {}, clear=True), \
+             pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            ImprovedReportGenerator()
 
 
 class TestFallbackPlan:
@@ -130,7 +129,7 @@ class TestFallbackPlan:
         assert plan.sections[1].title == "Main Analysis"
         assert plan.sections[2].title == "Conclusion"
 
-    def test_business_fallback_plan(self, mock_env):
+    def test_business_fallback_plan(self, mock_env):  # noqa: ARG002
         """Business template fallback should have exec summary, analysis, recs"""
         with patch("report_generator.Anthropic"), \
              patch("report_generator.TavilyClient"), \
@@ -145,7 +144,7 @@ class TestFallbackPlan:
             assert "Business Analysis" in plan.title
             assert plan.sections[0].title == "Executive Summary"
 
-    def test_academic_fallback_plan(self, mock_env):
+    def test_academic_fallback_plan(self, mock_env):  # noqa: ARG002
         """Academic template fallback should have abstract, lit review, conclusion"""
         with patch("report_generator.Anthropic"), \
              patch("report_generator.TavilyClient"), \
@@ -261,7 +260,7 @@ class TestSaveReport:
             filepath = generator.save_report("# My Report\n\nContent here")
 
             assert os.path.exists(filepath)
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 assert "# My Report" in f.read()
 
     def test_save_report_custom_filename(self, generator):

@@ -5,7 +5,7 @@ Validates argparse configuration and argument parsing
 
 import pytest
 
-from main import build_parser, VALID_TEMPLATES
+from main import VALID_TEMPLATES, build_parser
 
 
 class TestBuildParser:

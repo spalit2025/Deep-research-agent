@@ -308,17 +308,20 @@ def parse_report_plan(text: str) -> Optional[Dict]:
 
 def parse_search_queries(text: str) -> Optional[List[str]]:
     """Parse search queries JSON array"""
-    data = RobustJSONParser.extract_json_from_text(text, "array")
-
-    # If we got an object instead of array, try to extract array from it
-    if isinstance(data, dict):
+    # First try parsing as object to properly handle {"queries": [...]} patterns
+    # and reject objects with unrecognized keys
+    obj_data = RobustJSONParser.extract_json_from_text(text, "object")
+    if isinstance(obj_data, dict):
         # Try common keys that might contain the array
         for key in ["queries", "search_queries", "items"]:
-            if key in data and isinstance(data[key], list):
-                data = data[key]
+            if key in obj_data and isinstance(obj_data[key], list):
+                data = obj_data[key]
                 break
         else:
             return None  # No valid array found in object
+    else:
+        # Fall back to direct array extraction
+        data = RobustJSONParser.extract_json_from_text(text, "array")
 
     # Validate it's a list of strings
     if data and isinstance(data, list):

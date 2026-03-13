@@ -134,11 +134,9 @@ async def retry_with_exponential_backoff(
         try:
             logger.debug("Attempting API call", **context)
 
-            result = (
-                await func(*args, **kwargs)
-                if asyncio.iscoroutinefunction(func)
-                else func(*args, **kwargs)
-            )
+            result = func(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                result = await result
 
             logger.info("API call successful", **context)
             return result
@@ -212,11 +210,10 @@ class APICallManager:
                 api_func, self.retry_config, *args, **kwargs
             )
         else:
-            return (
-                await api_func(*args, **kwargs)
-                if asyncio.iscoroutinefunction(api_func)
-                else api_func(*args, **kwargs)
-            )
+            result = api_func(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                result = await result
+            return result
 
     async def call_tavily_api(self, api_func: Callable, *args, **kwargs) -> Any:
         """
@@ -237,11 +234,10 @@ class APICallManager:
                 api_func, self.retry_config, *args, **kwargs
             )
         else:
-            return (
-                await api_func(*args, **kwargs)
-                if asyncio.iscoroutinefunction(api_func)
-                else api_func(*args, **kwargs)
-            )
+            result = api_func(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                result = await result
+            return result
 
 
 # Decorator for automatic rate limiting

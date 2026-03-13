@@ -69,3 +69,6 @@ run_tests.py
 
 # Editor-specific files
 .cursor/
+
+# AI assistant config
+CLAUDE.md

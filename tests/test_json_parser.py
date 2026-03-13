@@ -104,7 +104,7 @@ class TestRobustJSONParser:
         text = """
         ```json
         {
-            "title": "Report with émojis 🚀 and quotes \"nested\"",
+            "title": "Report with émojis 🚀 and quotes \\"nested\\"",
             "description": "Line 1\\nLine 2\\tTabbed",
             "unicode": "测试中文"
         }

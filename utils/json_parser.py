@@ -141,10 +141,9 @@ class RobustJSONParser:
                 if char == '"' and not escaped:
                     in_string = not in_string
 
-                if not in_string and i < len(line) - 1:
-                    if line[i : i + 2] == "//":
-                        comment_start = i
-                        break
+                if not in_string and i < len(line) - 1 and line[i : i + 2] == "//":
+                    comment_start = i
+                    break
 
             if comment_start >= 0:
                 line = line[:comment_start].rstrip()

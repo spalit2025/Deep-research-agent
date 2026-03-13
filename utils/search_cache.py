@@ -7,9 +7,9 @@ Intelligent caching of search results with query similarity detection
 from dataclasses import asdict, dataclass
 from difflib import SequenceMatcher
 import hashlib
+import json
 import logging
 import os
-import pickle
 import time
 from typing import Any, Dict, List, Optional
 
@@ -103,6 +103,7 @@ class SearchCache:
         # Create cache directory
         if self.enable_file_cache:
             os.makedirs(cache_dir, exist_ok=True)
+            self._cleanup_legacy_pkl_files()
             self._load_cache_from_disk()
 
         logger.info(
@@ -284,11 +285,11 @@ class SearchCache:
             logger.debug(f"Evicted cache entry: {entry.query[:50]}...")
 
     def _save_entry_to_disk(self, cache_key: str, entry: CacheEntry) -> None:
-        """Save a cache entry to disk"""
+        """Save a cache entry to disk as JSON"""
         try:
-            file_path = os.path.join(self.cache_dir, f"{cache_key}.pkl")
-            with open(file_path, "wb") as f:
-                pickle.dump(entry, f)
+            file_path = os.path.join(self.cache_dir, f"{cache_key}.json")
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(entry.to_dict(), f, ensure_ascii=False)
         except Exception as e:
             logger.warning(f"Failed to save cache entry to disk: {e}")
 
@@ -299,15 +300,17 @@ class SearchCache:
 
         loaded_count = 0
         for filename in os.listdir(self.cache_dir):
-            if filename.endswith(".pkl"):
+            if filename.endswith(".json"):
                 try:
                     file_path = os.path.join(self.cache_dir, filename)
-                    with open(file_path, "rb") as f:
-                        entry = pickle.load(f)
+                    with open(file_path, encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    entry = CacheEntry(**data)
 
                     # Check if entry is expired
                     if not entry.is_expired(self.ttl_hours):
-                        cache_key = filename[:-4]  # Remove .pkl extension
+                        cache_key = filename[:-5]  # Remove .json extension
                         self.memory_cache[cache_key] = entry
                         loaded_count += 1
                     else:
@@ -320,6 +323,18 @@ class SearchCache:
         self.stats.cache_size = len(self.memory_cache)
         logger.info(f"Loaded {loaded_count} cache entries from disk")
 
+    def _cleanup_legacy_pkl_files(self) -> None:
+        """Remove legacy pickle cache files (security: pickle allows arbitrary code execution)"""
+        if not os.path.exists(self.cache_dir):
+            return
+        removed = 0
+        for filename in os.listdir(self.cache_dir):
+            if filename.endswith(".pkl"):
+                os.remove(os.path.join(self.cache_dir, filename))
+                removed += 1
+        if removed:
+            logger.info(f"Removed {removed} legacy pickle cache files")
+
     def clear_cache(self) -> None:
         """Clear all cache entries"""
         self.memory_cache.clear()
@@ -327,7 +342,7 @@ class SearchCache:
         # Clear disk cache
         if self.enable_file_cache and os.path.exists(self.cache_dir):
             for filename in os.listdir(self.cache_dir):
-                if filename.endswith(".pkl"):
+                if filename.endswith(".json"):
                     os.remove(os.path.join(self.cache_dir, filename))
 
         # Reset statistics
@@ -348,7 +363,7 @@ class SearchCache:
 
             # Remove from disk
             if self.enable_file_cache:
-                file_path = os.path.join(self.cache_dir, f"{cache_key}.pkl")
+                file_path = os.path.join(self.cache_dir, f"{cache_key}.json")
                 if os.path.exists(file_path):
                     os.remove(file_path)
 

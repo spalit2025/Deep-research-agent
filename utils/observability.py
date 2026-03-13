@@ -16,6 +16,23 @@ import uuid
 
 import structlog
 
+# Configure structlog once at module level (not per-logger instance)
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="ISO"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.JSONRenderer(),
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
 
 class LogLevel(Enum):
     """Structured log levels"""
@@ -129,42 +146,18 @@ class PerformanceMetrics:
 
 
 class StructuredLogger:
-    """Structured logger with correlation IDs and context"""
+    """Structured logger with correlation IDs and context.
+
+    Uses structlog.bind() to attach component info, rather than
+    reconfiguring structlog globally on each instantiation.
+    """
 
     def __init__(self, component: ComponentType):
         self.component = component
         self._local = local()
-
-        # Configure structlog
-        structlog.configure(
-            processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_logger_name,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.TimeStamper(fmt="ISO"),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                self._add_context,
-                structlog.processors.JSONRenderer(),
-            ],
-            context_class=dict,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            cache_logger_on_first_use=True,
+        self.logger = structlog.get_logger(component.value).bind(
+            component=component.value
         )
-
-        self.logger = structlog.get_logger(component.value)
-
-    def _add_context(self, logger, method_name, event_dict):
-        """Add correlation ID and context to all log entries"""
-        # Add correlation ID if available
-        if hasattr(self._local, "context"):
-            event_dict.update(self._local.context.to_dict())
-
-        # Add component info
-        event_dict["component"] = self.component.value
-
-        return event_dict
 
     def set_context(self, context: LogContext):
         """Set logging context for current thread"""
@@ -174,17 +167,24 @@ class StructuredLogger:
         """Get current logging context"""
         return getattr(self._local, "context", None)
 
+    def _with_context(self, kwargs: dict) -> dict:
+        """Merge thread-local context into log kwargs"""
+        ctx = self.get_context()
+        if ctx:
+            return {**ctx.to_dict(), **kwargs}
+        return kwargs
+
     def debug(self, message: str, **kwargs):
         """Log debug message with context"""
-        self.logger.debug(message, **kwargs)
+        self.logger.debug(message, **self._with_context(kwargs))
 
     def info(self, message: str, **kwargs):
         """Log info message with context"""
-        self.logger.info(message, **kwargs)
+        self.logger.info(message, **self._with_context(kwargs))
 
     def warning(self, message: str, **kwargs):
         """Log warning message with context"""
-        self.logger.warning(message, **kwargs)
+        self.logger.warning(message, **self._with_context(kwargs))
 
     def error(self, message: str, error: Optional[Exception] = None, **kwargs):
         """Log error message with context and exception details"""
@@ -192,11 +192,11 @@ class StructuredLogger:
             kwargs["error_type"] = type(error).__name__
             kwargs["error_message"] = str(error)
             kwargs["traceback"] = traceback.format_exc()
-        self.logger.error(message, **kwargs)
+        self.logger.error(message, **self._with_context(kwargs))
 
     def critical(self, message: str, **kwargs):
         """Log critical message with context"""
-        self.logger.critical(message, **kwargs)
+        self.logger.critical(message, **self._with_context(kwargs))
 
 
 class MetricsCollector:
@@ -331,7 +331,6 @@ class ObservabilityManager:
 
         start_time = time.time()
         success = False
-        error = None
 
         try:
             logger.info(
@@ -341,7 +340,6 @@ class ObservabilityManager:
             success = True
 
         except Exception as e:
-            error = e
             logger.error(
                 f"Operation failed: {operation_name}", error=e, operation=operation_name
             )
@@ -374,18 +372,16 @@ class ObservabilityManager:
 
         # Duration thresholds
         for threshold_key, threshold_value in self.thresholds.items():
-            if threshold_key.endswith("_duration") and operation in threshold_key:
-                if duration > threshold_value:
-                    alerts.append(
-                        f"Slow operation: {operation} took {duration:.2f}s (threshold: {threshold_value}s)"
-                    )
+            if threshold_key.endswith("_duration") and operation in threshold_key and duration > threshold_value:
+                alerts.append(
+                    f"Slow operation: {operation} took {duration:.2f}s (threshold: {threshold_value}s)"
+                )
 
         # Error rate threshold
-        if not success:
-            if operation in self.metrics.metrics:
-                error_rate = 1 - self.metrics.metrics[operation].success_rate
-                if error_rate > self.thresholds.get("error_rate", 0.1):
-                    alerts.append(f"High error rate: {operation} at {error_rate:.1%}")
+        if not success and operation in self.metrics.metrics:
+            error_rate = 1 - self.metrics.metrics[operation].success_rate
+            if error_rate > self.thresholds.get("error_rate", 0.1):
+                alerts.append(f"High error rate: {operation} at {error_rate:.1%}")
 
         # Log alerts
         for alert in alerts:

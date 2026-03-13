@@ -43,7 +43,7 @@ def setup_async_environment():
         loop = asyncio.get_event_loop()
         if not loop.is_closed():
             loop.close()
-    except:
+    except Exception:
         pass
 
 
@@ -180,7 +180,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "network: mark test as requiring network access")
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config, items):  # noqa: ARG001
     """Modify test collection to handle async tests properly"""
     for item in items:
         # Mark all async tests
@@ -209,8 +209,6 @@ def malformed_json_samples():
 @pytest.fixture
 def valid_json_variations():
     """Collection of valid JSON in different formats"""
-    base_json = {"title": "Test Report", "sections": []}
-
     return [
         # Clean JSON
         '{"title": "Test Report", "sections": []}',

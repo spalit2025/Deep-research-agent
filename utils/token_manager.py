@@ -29,9 +29,12 @@ class TokenManager:
     def __init__(self, model_name: str = "claude-3-5-sonnet-20241022"):
         """Initialize with model-specific context limits"""
         self.model_limits = {
-            "claude-3-5-sonnet-20241022": 200000,  # 200k tokens
-            "claude-3-5-haiku-20241022": 200000,  # 200k tokens
-            "claude-3-opus-20240229": 200000,  # 200k tokens
+            "claude-sonnet-4-20250514": 200000,  # 200k tokens
+            "claude-opus-4-20250514": 200000,  # 200k tokens
+            "claude-haiku-4-20250514": 200000,  # 200k tokens
+            "claude-3-5-sonnet-20241022": 200000,  # 200k tokens (legacy)
+            "claude-3-5-haiku-20241022": 200000,  # 200k tokens (legacy)
+            "claude-3-opus-20240229": 200000,  # 200k tokens (legacy)
             "gpt-4": 8192,  # 8k tokens
             "gpt-4-turbo": 128000,  # 128k tokens
             "gpt-4o": 128000,  # 128k tokens
@@ -58,7 +61,7 @@ class TokenManager:
         if not text:
             return 0
         # More accurate estimation considering word boundaries and punctuation
-        return len(text) // 3.5  # Slightly more accurate than /4
+        return int(len(text) // 3.5)  # Slightly more accurate than /4
 
     def optimize_sources_for_context(
         self, search_results: List[Dict], prompt_text: str
@@ -235,13 +238,13 @@ Token Usage Report:
 - Usage: {usage.usage_percentage:.1f}%
 """
 
-        if usage.usage_percentage > 90:
-            report += (
-                "\n⚠️  WARNING: High token usage - consider reducing source content"
-            )
-        elif usage.usage_percentage > 95:
+        if usage.usage_percentage > 95:
             report += (
                 "\n🚨 CRITICAL: Very high token usage - likely truncation occurred"
+            )
+        elif usage.usage_percentage > 90:
+            report += (
+                "\n⚠️  WARNING: High token usage - consider reducing source content"
             )
 
         return report.strip()

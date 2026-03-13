@@ -3,6 +3,7 @@
 Enhanced main entry point with template selection
 """
 
+import argparse
 import asyncio
 import sys
 
@@ -13,13 +14,7 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from config import get_config
-from report_generator import (
-    ImprovedReportGenerator,
-    generate_academic_report,
-    generate_business_report,
-    generate_quick_report,
-    generate_technical_report,
-)
+from report_generator import ImprovedReportGenerator
 from utils.observability import (
     ComponentType,
     OperationType,
@@ -33,6 +28,8 @@ console = Console()
 # Initialize structured logging
 logger = get_logger(ComponentType.REPORT_GENERATOR)
 obs = get_observability_manager()
+
+VALID_TEMPLATES = ["standard", "business", "academic", "technical", "quick"]
 
 
 def check_system_health():
@@ -132,7 +129,7 @@ async def interactive_mode():
             # Get template choice
             template_choice = Prompt.ask(
                 "\n[cyan]Choose a template[/cyan]",
-                choices=["standard", "business", "academic", "technical", "quick"],
+                choices=VALID_TEMPLATES,
                 default="standard",
             )
 
@@ -145,8 +142,7 @@ async def interactive_mode():
                 console.print("[red]Please enter a valid topic.[/red]")
                 continue
 
-            # Generate report based on template choice
-            user_id = f"user_{hash(topic) % 10000}"  # Simple user ID for demo
+            user_id = f"user_{hash(topic) % 10000}"
 
             logger.info(
                 "Starting report generation request",
@@ -159,23 +155,13 @@ async def interactive_mode():
                 f"\n[green]Generating {template_choice} report on: {topic}[/green]"
             )
 
-            with console.status(f"[bold green]Generating {template_choice} report..."):
-                if template_choice == "business":
-                    report = await generate_business_report(topic)
-                elif template_choice == "academic":
-                    report = await generate_academic_report(topic)
-                elif template_choice == "technical":
-                    report = await generate_technical_report(topic)
-                elif template_choice == "quick":
-                    report = await generate_quick_report(topic)
-                else:
-                    config = get_config("standard")
-                    generator = ImprovedReportGenerator(config)
-                    report = await generator.generate_report(topic, user_id=user_id)
-
-            # Save report
+            # Single generator instance for both generation and saving
             config = get_config(template_choice)
             generator = ImprovedReportGenerator(config)
+
+            with console.status(f"[bold green]Generating {template_choice} report..."):
+                report = await generator.generate_report(topic, user_id=user_id)
+
             filename = generator.save_report(report)
 
             # Display success message
@@ -254,23 +240,13 @@ async def single_report_mode(topic: str, template: str = "standard"):
     console.print(f"[green]Generating {template} report on: {topic}[/green]")
 
     try:
-        with console.status(f"[bold green]Generating {template} report..."):
-            if template == "business":
-                report = await generate_business_report(topic)
-            elif template == "academic":
-                report = await generate_academic_report(topic)
-            elif template == "technical":
-                report = await generate_technical_report(topic)
-            elif template == "quick":
-                report = await generate_quick_report(topic)
-            else:
-                config = get_config(template)
-                generator = ImprovedReportGenerator(config)
-                report = await generator.generate_report(topic, user_id=user_id)
-
-        # Save report
+        # Single generator instance for both generation and saving
         config = get_config(template)
         generator = ImprovedReportGenerator(config)
+
+        with console.status(f"[bold green]Generating {template} report..."):
+            report = await generator.generate_report(topic, user_id=user_id)
+
         filename = generator.save_report(report)
 
         console.print("\n[bold green]✅ Report generated successfully![/bold green]")
@@ -295,58 +271,48 @@ async def single_report_mode(topic: str, template: str = "standard"):
         sys.exit(1)
 
 
-def print_usage():
-    """Print usage instructions"""
-    console.print(
-        Panel.fit(
-            """[bold cyan]Usage Examples:[/bold cyan]
-
-[yellow]Interactive mode:[/yellow]
-python main.py
-
-[yellow]Single report:[/yellow]
-python main.py "Your Topic Here"
-python main.py "AI in Healthcare" --template business
-
-[yellow]Available templates:[/yellow]
-standard, business, academic, technical, quick
-
-[yellow]Rate Limiting:[/yellow]
-Built-in rate limiting prevents API limit issues automatically.""",
-            title="📖 Help",
-        )
+def build_parser() -> argparse.ArgumentParser:
+    """Build CLI argument parser"""
+    parser = argparse.ArgumentParser(
+        prog="deep-research",
+        description="AI-powered research report generator with multiple templates",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+examples:
+  %(prog)s                                  Interactive mode
+  %(prog)s "AI in Healthcare"               Standard report
+  %(prog)s "Market Trends" -t business      Business report
+  %(prog)s "Quantum Computing" -t academic  Academic report
+        """,
     )
+    parser.add_argument(
+        "topic",
+        nargs="?",
+        default=None,
+        help="Research topic (omit for interactive mode)",
+    )
+    parser.add_argument(
+        "-t",
+        "--template",
+        choices=VALID_TEMPLATES,
+        default="standard",
+        help="Report template (default: standard)",
+    )
+    return parser
 
 
 def main():
-    """Enhanced main function with argument parsing"""
+    """Main entry point with argparse-based argument parsing"""
 
     logger.info("Application starting")
 
-    # Simple argument parsing
-    args = sys.argv[1:]
-
-    if "--help" in args or "-h" in args:
-        print_usage()
-        return
-
-    # Extract template if specified
-    template = "standard"
-    if "--template" in args:
-        template_idx = args.index("--template")
-        if template_idx + 1 < len(args):
-            template = args[template_idx + 1]
-            args.pop(template_idx)  # Remove --template
-            args.pop(template_idx)  # Remove template value
+    parser = build_parser()
+    args = parser.parse_args()
 
     try:
-        # Generate report based on arguments
-        if args:
-            # Single report mode
-            topic = " ".join(args)
-            asyncio.run(single_report_mode(topic, template))
+        if args.topic:
+            asyncio.run(single_report_mode(args.topic, args.template))
         else:
-            # Interactive mode
             asyncio.run(interactive_mode())
 
     finally:

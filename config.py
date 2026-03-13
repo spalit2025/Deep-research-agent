@@ -3,6 +3,7 @@ Configuration settings for the report generator
 Centralized place for all configuration options
 """
 
+import os
 from typing import Any, Dict
 
 
@@ -14,7 +15,7 @@ class ReportConfig:
         # Report template type
         "template": "standard",  # Options: "standard", "business", "academic", "technical"
         # Claude model settings
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "claude-sonnet-4-20250514",
         "max_tokens": 2000,
         "temperature": 0,
         # Search settings
@@ -44,7 +45,7 @@ class ReportConfig:
         "retry_max_delay": 60.0,
         # Token management settings
         "enable_token_management": True,
-        "token_model_name": "claude-3-5-sonnet-20241022",
+        "token_model_name": "claude-sonnet-4-20250514",
         "token_response_buffer": 2000,  # tokens reserved for response
         "token_sources_percentage": 0.6,  # 60% of available tokens for sources
         "token_min_source_content": 200,  # minimum chars per source
@@ -71,6 +72,12 @@ class ReportConfig:
     def __init__(self, custom_settings: Dict[str, Any] = None):
         """Initialize configuration with optional custom settings"""
         self.settings = self.DEFAULT_SETTINGS.copy()
+
+        # Allow MODEL_NAME env var to override default model at runtime
+        model_override = os.getenv("MODEL_NAME")
+        if model_override:
+            self.settings["model"] = model_override
+            self.settings["token_model_name"] = model_override
 
         if custom_settings:
             self.settings.update(custom_settings)
@@ -136,7 +143,7 @@ TECHNICAL_CONFIG = ReportConfig(
 
 QUICK_CONFIG = ReportConfig(
     {
-        "template": "standard",
+        "template": "quick",
         "section_word_count": "200-300",
         "intro_word_count": "100-150",
         "conclusion_word_count": "100-150",

@@ -56,6 +56,12 @@ class ImprovedReportGenerator:
         self.logger = get_logger(ComponentType.REPORT_GENERATOR)
         self.obs = get_observability_manager()
 
+        # Validate API keys before constructing clients
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            raise ValueError("ANTHROPIC_API_KEY not found in environment")
+        if not os.getenv("TAVILY_API_KEY"):
+            raise ValueError("TAVILY_API_KEY not found in environment")
+
         # Initialize API clients
         self.anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         self.tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
@@ -76,14 +82,35 @@ class ImprovedReportGenerator:
         else:
             self.search_cache = None
 
-        # Validate API keys
-        if not os.getenv("ANTHROPIC_API_KEY"):
-            raise ValueError("ANTHROPIC_API_KEY not found in environment")
-        if not os.getenv("TAVILY_API_KEY"):
-            raise ValueError("TAVILY_API_KEY not found in environment")
-
         # Create output directory
         os.makedirs(self.config.get("output_directory"), exist_ok=True)
+
+    async def _call_claude(self, prompt: str, max_tokens: int) -> str:
+        """Call Claude API with rate limiting and response validation.
+
+        Args:
+            prompt: The user message to send.
+            max_tokens: Maximum tokens for the response.
+
+        Returns:
+            The text content of Claude's response.
+
+        Raises:
+            ValueError: If the response has no content.
+        """
+
+        async def api_call():
+            return self.anthropic.messages.create(
+                model=self.config.get("model"),
+                max_tokens=max_tokens,
+                temperature=self.config.get("temperature", 0),
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+        response = await self.rate_limiter.call_anthropic_api(api_call)
+        if not response.content:
+            raise ValueError("Empty response from Claude API")
+        return response.content[0].text
 
     @timed_operation(
         "full_report_generation",
@@ -189,19 +216,9 @@ class ImprovedReportGenerator:
         prompt = self.prompt_loader.get_structure_prompt(topic)
 
         try:
-            # Create async wrapper for Anthropic API call
-            async def anthropic_call():
-                return self.anthropic.messages.create(
-                    model=self.config.get("model"),
-                    max_tokens=self.config.get("max_tokens", 1500),
-                    temperature=self.config.get("temperature", 0),
-                    messages=[{"role": "user", "content": prompt}],
-                )
-
-            response = await self.rate_limiter.call_anthropic_api(anthropic_call)
-
-            # Extract JSON from response using robust parser
-            content = response.content[0].text
+            content = await self._call_claude(
+                prompt, self.config.get("max_tokens", 1500)
+            )
             plan_data = parse_report_plan(content)
 
             if plan_data:
@@ -309,18 +326,7 @@ class ImprovedReportGenerator:
         )
 
         try:
-            # Create async wrapper for Anthropic API call
-            async def anthropic_call():
-                return self.anthropic.messages.create(
-                    model=self.config.get("model"),
-                    max_tokens=500,
-                    temperature=self.config.get("temperature", 0),
-                    messages=[{"role": "user", "content": prompt}],
-                )
-
-            response = await self.rate_limiter.call_anthropic_api(anthropic_call)
-
-            content = response.content[0].text
+            content = await self._call_claude(prompt, 500)
             queries = parse_search_queries(content)
 
             if queries:
@@ -378,9 +384,10 @@ class ImprovedReportGenerator:
                 )
 
                 # Create async wrapper for Tavily API call
-                async def tavily_call():
+                # Default arg captures query by value to avoid closure-over-loop-variable bug
+                async def tavily_call(q=query):
                     return self.tavily.search(
-                        query=query,
+                        query=q,
                         search_depth=search_depth,
                         max_results=max_results,
                         include_raw_content=True,
@@ -485,18 +492,9 @@ class ImprovedReportGenerator:
         )
 
         try:
-            # Create async wrapper for Anthropic API call
-            async def anthropic_call():
-                return self.anthropic.messages.create(
-                    model=self.config.get("model"),
-                    max_tokens=self.config.get("max_tokens", 2000),
-                    temperature=self.config.get("temperature", 0),
-                    messages=[{"role": "user", "content": prompt}],
-                )
-
-            response = await self.rate_limiter.call_anthropic_api(anthropic_call)
-
-            return response.content[0].text
+            return await self._call_claude(
+                prompt, self.config.get("max_tokens", 2000)
+            )
 
         except Exception as e:
             self.logger.error(
@@ -566,18 +564,7 @@ class ImprovedReportGenerator:
         )
 
         try:
-            # Create async wrapper for Anthropic API call
-            async def anthropic_call():
-                return self.anthropic.messages.create(
-                    model=self.config.get("model"),
-                    max_tokens=1000,
-                    temperature=self.config.get("temperature", 0),
-                    messages=[{"role": "user", "content": prompt}],
-                )
-
-            response = await self.rate_limiter.call_anthropic_api(anthropic_call)
-
-            return response.content[0].text
+            return await self._call_claude(prompt, 1000)
 
         except Exception as e:
             self.logger.error(
@@ -663,42 +650,3 @@ async def generate_quick_report(topic: str) -> str:
     return await generator.generate_report(topic)
 
 
-# Example usage with different templates
-async def demo_different_templates():
-    """Demonstrate different report templates"""
-    from utils.observability import ComponentType, get_logger
-
-    logger = get_logger(ComponentType.REPORT_GENERATOR)
-    topic = "Artificial Intelligence in Healthcare"
-
-    logger.info("Starting template demonstration", topic=topic)
-
-    logger.info("Generating business report", template="business")
-    business_report = await generate_business_report(topic)
-
-    logger.info("Generating academic report", template="academic")
-    academic_report = await generate_academic_report(topic)
-
-    logger.info("Generating technical report", template="technical")
-    technical_report = await generate_technical_report(topic)
-
-    logger.info("Generating quick report", template="quick")
-    quick_report = await generate_quick_report(topic)
-
-    logger.info(
-        "All template reports generated successfully",
-        topic=topic,
-        templates_generated=["business", "academic", "technical", "quick"],
-    )
-
-    return {
-        "business": business_report,
-        "academic": academic_report,
-        "technical": technical_report,
-        "quick": quick_report,
-    }
-
-
-if __name__ == "__main__":
-    # Demo the improved generator
-    asyncio.run(demo_different_templates())
